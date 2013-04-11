@@ -136,16 +136,8 @@ Tower.prototype.getCenter = function () {
 };
 
 Bullet = function (tower, monster, game) {
-    tower_center = tower.getCenter();
-    monster_center = monster.getCenter();
-    this.from = {
-        x : tower_center.x,
-        y : tower_center.y
-    };
-    this.to = {
-        x : monster_center.x,
-        y : monster_center.y
-    };
+    this.tower = tower;
+    this.monster = monster;
     this.game = game;
     this.fade = 10;
     this.removed = false;
@@ -160,10 +152,12 @@ Bullet.prototype.draw = function () {
     {
         return;
     }
+    tower_center = this.tower.getCenter();
+    monster_center = this.monster.getCenter();
     this.game.canvas.beginPath();
     this.game.canvas.strokeStyle = 'white';
-    this.game.canvas.moveTo(this.from.x, this.from.y);
-    this.game.canvas.lineTo(this.to.x, this.to.y);
+    this.game.canvas.moveTo(tower_center.x, tower_center.y);
+    this.game.canvas.lineTo(monster_center.x, monster_center.y);
     this.game.canvas.globalAlpha = this.fade / 10;
     this.game.canvas.stroke();
     this.game.canvas.globalAlpha = 1;
