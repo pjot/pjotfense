@@ -18,10 +18,13 @@ Config.WIDTH = 800 / Config.GRID_SIZE;
 Game = function (canvas_id) {
     this.canvas_element = document.getElementById(canvas_id);
     this.canvas = this.canvas_element.getContext('2d');
+    this.canvas_element.onmousemove = Game.onMouseMoveListener;
+    this.canvas_element.onclick = Game.onClickListener;
     this.monsters = [];
     this.tiles = [];
     this.towers = [];
     this.bullets = [];
+    this.counter = 0;
 };
 
 Game.prototype.loop = function () {
@@ -39,6 +42,24 @@ Game.prototype.doLoop = function () {
         this.towers[t].attack();
     }
     this.draw();
+    if (this.counter > 30)
+    {
+        this.spawnMonster(Monster.RED);
+        this.counter = 0;
+    }
+    this.counter++;
+};
+
+Game.prototype.addTower = function () {
+    for (t in this.tiles)
+    {
+        tile = this.tiles[t];
+        if (tile.frame)
+        {
+            this.buildTower(tile.x, tile.y, Tower.BLUE);
+            break;
+        }
+    }
 };
 
 Game.prototype.getTileAt = function (x, y)
@@ -93,6 +114,17 @@ Game.prototype.buildTower = function (x, y, type) {
     tower.draw();
 };
 
+Game.prototype.frame = function (tile) {
+    for (t in this.tiles)
+    {
+        this.tiles[t].frame = false;
+        if (this.tiles[t].is(tile))
+        {
+            this.tiles[t].frame = true;
+        }
+    }
+};
+
 Game.prototype.draw = function () {
     for (i in this.tiles)
     {
@@ -117,6 +149,22 @@ Game.init = function () {
     window.game.run();
 };
 
+Game.onClickListener = function (e) {
+    window.game.addTower();
+};
+
+Game.onMouseMoveListener = function (e) {
+    var event = e || window.event,
+        tile = window.game.getTileAt(
+            Math.floor(event.offsetX / window.Config.GRID_SIZE),
+            Math.floor(event.offsetY / window.Config.GRID_SIZE)
+        );
+    if (tile !== false)
+    {
+        tile.game.frame(tile);
+    }
+};
+
 Tower = function (x, y, type, game) {
     this.x = x * Config.GRID_SIZE;
     this.y = y * Config.GRID_SIZE;
@@ -126,6 +174,7 @@ Tower = function (x, y, type, game) {
     this.damage = 20;
     this.can_fire = true;
     this.reloaded = 0;
+    this.xp = 0;
 };
 
 Tower.prototype.getCenter = function () {
@@ -184,7 +233,7 @@ Tower.prototype.fireAt = function (monster)
     this.game.bullets.push(bullet);
     if (monster.life < this.damage)
     {
-        monster.kill();
+        monster.die();
         this.xp += monster.life;
     }
     else
@@ -200,9 +249,17 @@ Tower.prototype.attack = function () {
         this.reloaded++;
         return;
     }
+    monsters = this.game.monsters;
+    monsters.sort(function(a, b) {
+        if (a.distance == b.distance)
+        {
+            return 0;
+        }
+        return a.distance < b.distance ? 1 : -1;
+    });
     for (m in this.game.monsters)
     {
-        monster = this.game.monsters[m];
+        monster = monsters[m];
         if (monster.isAlive() && this.distanceTo(monster) < this.range)
         {
             this.fireAt(monster);
@@ -230,9 +287,10 @@ Monster = function (x, y, type, game) {
     this.visited_tiles = [this.current_tile];
     this.is_dead = false;    
     this.life = 50;
+    this.distance = 0;
 };
 
-Monster.prototype.kill = function () {
+Monster.prototype.die = function () {
     this.is_dead = true;
 };
 
@@ -251,10 +309,12 @@ Monster.prototype.move = function () {
     dy = next_tile.y - current_tile.y == 0 ? 0 : (next_tile.y - current_tile.y) / Math.abs(next_tile.y - current_tile.y);
     this.x += dx;
     this.y += dy;
+    this.distance += Math.abs(dx) + Math.abs(dy);
     if (this.type == Monster.RED)
     {
         this.x += dx;
         this.y += dy;
+        this.distance += Math.abs(dx) + Math.abs(dy);
     }
     if (this.x == next_tile.x * Config.GRID_SIZE && this.y == next_tile.y * Config.GRID_SIZE)
     {
@@ -288,7 +348,7 @@ Monster.prototype.getNextTile = function () {
             }
         }
     }
-    this.kill();
+    this.die();
 };
 
 Monster.prototype.getPreviousTile = function () {
@@ -344,6 +404,7 @@ Tile = function (x, y, type, game) {
     this.y = y;
     this.type = type;
     this.game = game;
+    this.frame = false;
 };
 
 Tile.prototype.getCenter = function () {
@@ -368,6 +429,11 @@ Tile.prototype.draw = function () {
             break;
     }
     this.game.canvas.fillRect(this.x * Config.GRID_SIZE, this.y * Config.GRID_SIZE, Config.GRID_SIZE, Config.GRID_SIZE);
+    if (this.frame)
+    {
+        this.game.canvas.fillStyle = 'rgba(255, 125, 0, 0.5)';
+        this.game.canvas.fillRect(this.x * Config.GRID_SIZE, this.y * Config.GRID_SIZE, Config.GRID_SIZE, Config.GRID_SIZE);
+    }
 };
 
 Tile.ROAD = 'road';
