@@ -56,6 +56,11 @@ Game.prototype.addTower = function () {
         tile = this.tiles[t];
         if (tile.frame)
         {
+            if (tower = this.getTowerAt(tile.x, tile.y))
+            {
+                tower.upgrade();
+                break;
+            }
             this.buildTower(tile.x, tile.y, Tower.BLUE);
             break;
         }
@@ -70,6 +75,19 @@ Game.prototype.getTileAt = function (x, y)
         if (tile.x == x && tile.y == y)
         {
             return tile;
+        }
+    }
+    return false;
+};
+
+Game.prototype.getTowerAt = function (x, y)
+{
+    for (t in this.towers)
+    {
+        tower = this.towers[t];
+        if (tower.x == x && tower.y == y)
+        {
+            return tower;
         }
     }
     return false;
@@ -170,8 +188,7 @@ Tower = function (x, y, type, game) {
     this.y = y * Config.GRID_SIZE;
     this.type = type;
     this.game = game;
-    this.range = 100;
-    this.damage = 20;
+    this.level = 1;
     this.can_fire = true;
     this.reloaded = 0;
     this.xp = 0;
@@ -218,28 +235,35 @@ Bullet.prototype.draw = function () {
 };
 
 Tower.prototype.draw = function () {
-    switch (this.type)
-    {
-        case Tower.BLUE:
-            this.game.canvas.fillStyle = 'blue';
-            break;
-    }
+    this.game.canvas.fillStyle = this.getLevel().color;
     this.game.canvas.fillRect(this.x + 4, this.y + 4, Config.GRID_SIZE - 8, Config.GRID_SIZE - 8);
+};
+
+Tower.prototype.getLevel = function () {
+    return Towers[this.type][this.level];
 };
 
 Tower.prototype.fireAt = function (monster)
 {
     bullet = new Bullet(this, monster, this.game);
     this.game.bullets.push(bullet);
-    if (monster.life < this.damage)
+    damage = this.getLevel().damage;
+    if (monster.life < damage)
     {
         monster.die();
         this.xp += monster.life;
     }
     else
     {
-        monster.life -= this.damage;
-        this.xp += this.damage;
+        monster.life -= damage;
+        this.xp += damage;
+    }
+};
+
+Tower.prototype.upgrade = function () {
+    if (Towers[this.type][this.level + 1])
+    {
+        this.level++;
     }
 };
 
@@ -260,7 +284,7 @@ Tower.prototype.attack = function () {
     for (m in this.game.monsters)
     {
         monster = monsters[m];
-        if (monster.isAlive() && this.distanceTo(monster) < this.range)
+        if (monster.isAlive() && this.distanceTo(monster) < this.getLevel().range)
         {
             this.fireAt(monster);
             this.reloaded = 0;
@@ -444,6 +468,24 @@ Monster.RED = 'red';
 
 Tower.BLUE = 'blue';
 
+Towers = {};
+Towers[Tower.BLUE] = {
+    1 : {
+        damage : 20,
+        range : 100,
+        color : '#37C5DB'
+    },
+    2 : {
+        damage : 30,
+        range : 110,
+        color : '#3770DB'
+    },
+    3 : {
+        damage : 40,
+        range : 120,
+        color : '#3F37DB'
+    }
+}
 Level = {
     start : {
         x : 1,
