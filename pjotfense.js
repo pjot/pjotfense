@@ -59,10 +59,10 @@ Game.prototype.addTower = function () {
             if (tower = this.getTowerAt(tile.x, tile.y))
             {
                 tower.upgrade();
-                break;
+                return;
             }
             this.buildTower(tile.x, tile.y, Tower.BLUE);
-            break;
+            return;
         }
     }
 };
@@ -82,6 +82,8 @@ Game.prototype.getTileAt = function (x, y)
 
 Game.prototype.getTowerAt = function (x, y)
 {
+    x *= Config.GRID_SIZE;
+    y *= Config.GRID_SIZE;
     for (t in this.towers)
     {
         tower = this.towers[t];
@@ -148,13 +150,13 @@ Game.prototype.draw = function () {
     {
         this.tiles[i].draw();
     }
-    for (m in this.monsters)
-    {
-        this.monsters[m].draw();
-    }
     for (t in this.towers)
     {
         this.towers[t].draw();
+    }
+    for (m in this.monsters)
+    {
+        this.monsters[m].draw();
     }
     for (b in this.bullets)
     {
@@ -248,15 +250,15 @@ Tower.prototype.fireAt = function (monster)
     bullet = new Bullet(this, monster, this.game);
     this.game.bullets.push(bullet);
     damage = this.getLevel().damage;
-    if (monster.life < damage)
-    {
-        monster.die();
-        this.xp += monster.life;
-    }
-    else
+    if (monster.life > damage)
     {
         monster.life -= damage;
         this.xp += damage;
+    }
+    else
+    {
+        monster.die()
+        this.xp += monster.life;
     }
 };
 
@@ -421,6 +423,9 @@ Monster.prototype.draw = function () {
             break;
     }
     this.game.canvas.fillRect(this.x + 5, this.y + 5, Config.GRID_SIZE - 10, Config.GRID_SIZE - 10);
+    this.game.canvas.fillStyle = 'black';
+    this.game.canvas.font = '10px Arial';
+    this.game.canvas.fillText(this.life, this.x + 4, this.y);
 };
 
 Tile = function (x, y, type, game) {
