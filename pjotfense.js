@@ -25,6 +25,8 @@ Game = function (canvas_id) {
     this.towers = [];
     this.bullets = [];
     this.counter = 0;
+    this.monster_id = 0;
+    this.lives = 20;
 };
 
 Game.prototype.loop = function () {
@@ -44,7 +46,14 @@ Game.prototype.doLoop = function () {
     this.draw();
     if (this.counter > 30)
     {
-        this.spawnMonster(Monster.RED);
+        if (Math.random() > 0.5)
+        {
+            this.spawnMonster(Monster.RED);
+        }
+        else
+        {
+            this.spawnMonster(Monster.GREEN);
+        }
         this.counter = 0;
     }
     this.counter++;
@@ -131,7 +140,6 @@ Game.prototype.buildTower = function (x, y, type) {
     }
     tower = new Tower(x, y, type, this);
     this.towers.push(tower);
-    tower.draw();
 };
 
 Game.prototype.frame = function (tile) {
@@ -275,25 +283,27 @@ Tower.prototype.attack = function () {
         this.reloaded++;
         return;
     }
-    monsters = this.game.monsters;
-    monsters.sort(function(a, b) {
+    fire_monsters = []
+    for (m in this.game.monsters)
+    {
+        monster = this.game.monsters[m];
+        if (this.distanceTo(monster) < this.getLevel().range)
+        {
+            fire_monsters.push(monster);
+        }
+    }
+    fire_monsters.sort(function (a, b) {
         if (a.distance == b.distance)
         {
             return 0;
         }
-        return a.distance < b.distance ? 1 : -1;
+        return a.distance > b.distance ? 1 : -1;
     });
-    for (m in this.game.monsters)
+    if (fire_monsters.length > 0)
     {
-        monster = monsters[m];
-        if (monster.isAlive() && this.distanceTo(monster) < this.getLevel().range)
-        {
-            this.fireAt(monster);
-            this.reloaded = 0;
-            break;
-        }
+        this.fireAt(fire_monsters.pop());
+        this.reloaded = 0;
     }
-
 };
 
 Tower.prototype.distanceTo = function (monster) {
@@ -311,37 +321,43 @@ Monster = function (x, y, type, game) {
     this.game = game;
     this.current_tile = game.getTileAt(x, y);
     this.visited_tiles = [this.current_tile];
-    this.is_dead = false;    
-    this.life = 50;
+    this.life = this.getDefault().life;
     this.distance = 0;
+    this.id = ++game.monster_id;
+};
+
+Monster.prototype.is = function (monster) {
+    return this.id == monster.id;
 };
 
 Monster.prototype.die = function () {
-    this.is_dead = true;
-};
-
-Monster.prototype.isAlive = function () {
-    return this.is_dead == false;
+    for (m in this.game.monsters)
+    {
+        monster = this.game.monsters[m];
+        if (this.is(monster))
+        {
+            this.game.monsters.splice(m, 1);
+            return;
+        }
+    }
 };
 
 Monster.prototype.move = function () {
     next_tile = this.getNextTile();
-    if (this.is_dead)
+    if ( ! next_tile)
     {
+        this.die();
+        game.lives--;
         return;
     }
     current_tile = this.current_tile;
     dx = next_tile.x - current_tile.x == 0 ? 0 : (next_tile.x - current_tile.x) / Math.abs(next_tile.x - current_tile.x);
     dy = next_tile.y - current_tile.y == 0 ? 0 : (next_tile.y - current_tile.y) / Math.abs(next_tile.y - current_tile.y);
+    dx *= this.getDefault().speed;
+    dy *= this.getDefault().speed;
     this.x += dx;
     this.y += dy;
     this.distance += Math.abs(dx) + Math.abs(dy);
-    if (this.type == Monster.RED)
-    {
-        this.x += dx;
-        this.y += dy;
-        this.distance += Math.abs(dx) + Math.abs(dy);
-    }
     if (this.x == next_tile.x * Config.GRID_SIZE && this.y == next_tile.y * Config.GRID_SIZE)
     {
         this.visited_tiles.push(this.current_tile);
@@ -413,19 +429,15 @@ Monster.prototype.draw = function () {
     {
         return;
     }
-    switch (this.type)
-    {
-        case Monster.GREEN:
-            this.game.canvas.fillStyle = 'green';
-            break;
-        case Monster.RED:
-            this.game.canvas.fillStyle = 'red';
-            break;
-    }
+    this.game.canvas.fillStyle = this.getDefault().color;
     this.game.canvas.fillRect(this.x + 5, this.y + 5, Config.GRID_SIZE - 10, Config.GRID_SIZE - 10);
     this.game.canvas.fillStyle = 'black';
     this.game.canvas.font = '10px Arial';
     this.game.canvas.fillText(this.life, this.x + 4, this.y);
+};
+
+Monster.prototype.getDefault = function () {
+    return Monsters[this.type];
 };
 
 Tile = function (x, y, type, game) {
@@ -472,6 +484,19 @@ Monster.GREEN = 'green';
 Monster.RED = 'red';
 
 Tower.BLUE = 'blue';
+
+Monsters = {};
+Monsters[Monster.GREEN] = {
+    life : 70,
+    speed : 1,
+    color : 'green'
+};
+
+Monsters[Monster.RED] = {
+    life : 40,
+    speed : 2,
+    color : 'red'
+};
 
 Towers = {};
 Towers[Tower.BLUE] = {
