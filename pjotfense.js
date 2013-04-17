@@ -21,6 +21,7 @@ Game = function (canvas_id) {
     this.canvas = this.canvas_element.getContext('2d');
     this.canvas_element.onmousemove = Game.onMouseMoveListener;
     this.canvas_element.onclick = Game.onClickListener;
+    window.onkeydown = Game.onKeyDownListener;
     this.monsters = [];
     this.tiles = [];
     this.towers = [];
@@ -29,8 +30,11 @@ Game = function (canvas_id) {
     this.monster_id = 0;
     this.bullet_id = 0;
     this.lives = 20;
+    this.spawn = 0;
     this.current_level = 0;
+    this.framed = false;
     this.wave_counter = Config.WAVE_COUNT;
+    this.building = false;
 };
 
 Game.prototype.loop = function () {
@@ -71,25 +75,24 @@ Game.prototype.makeWave = function () {
     this.wave_counter = Config.WAVE_COUNT;
 };
 
-Game.prototype.addTower = function () {
-    for (t in this.tiles)
+Game.prototype.clickTile = function () {
+    if (this.framed)
     {
-        tile = this.tiles[t];
-        if (tile.frame)
+        if (this.framed.x == Config.WIDTH - 1 && this.framed.y == 0 && this.spawn == 0)
         {
-            if (tile.x == Config.WIDTH - 1 && tile.y == 0)
-            {
-                this.makeWave();
-                return;
-            }
-            if (tower = this.getTowerAt(tile.x, tile.y))
-            {
-                tower.upgrade();
-                return;
-            }
-            this.buildTower(tile.x, tile.y, Tower.BLUE);
+            this.makeWave();
             return;
         }
+        if (tower = this.getTowerAt(this.framed.x, this.framed.y))
+        {
+            tower.upgrade();
+            return;
+        }
+        if (this.building)
+        {
+            this.buildTower(this.framed.x, this.framed.y, this.building);
+        }
+        return;
     }
 };
 
@@ -160,14 +163,7 @@ Game.prototype.buildTower = function (x, y, type) {
 };
 
 Game.prototype.frame = function (tile) {
-    for (t in this.tiles)
-    {
-        this.tiles[t].frame = false;
-        if (this.tiles[t].is(tile))
-        {
-            this.tiles[t].frame = true;
-        }
-    }
+    this.framed = tile;
 };
 
 Game.prototype.draw = function () {
@@ -187,7 +183,18 @@ Game.prototype.draw = function () {
     {
         this.bullets[b].draw();
     }
-    this.canvas.fillStyle = 'black';
+    if (this.framed)
+    {
+        this.framed.drawFrame();
+    }
+    if (this.spawn == 0)
+    {
+        this.canvas.fillStyle = 'black';
+    }
+    else
+    {
+        this.canvas.fillStyle = 'red';
+    }
     this.canvas.font = '12px Arial';
     this.canvas.fillText(Math.ceil(this.wave_counter / 60), Config.WIDTH * Config.GRID_SIZE - 18, 15);
 };
@@ -206,7 +213,26 @@ Game.init = function () {
 };
 
 Game.onClickListener = function (e) {
-    window.game.addTower();
+    window.game.clickTile();
+};
+
+Game.onKeyDownListener = function (e) {
+    window.game.keyDown(e);
+};
+
+Game.prototype.keyDown = function (e) {
+    switch (e.keyCode)
+    {
+        case 65: // A
+            this.building = Tower.BLACK;
+            break;
+        case 83: // S
+            this.building = Tower.BLUE;
+            break;
+        case 27: // Esc
+            this.building = false;
+            break;
+    }
 };
 
 Game.onMouseMoveListener = function (e) {
@@ -274,8 +300,6 @@ Bullet.prototype.draw = function () {
     this.game.canvas.lineTo(monster_center.x, monster_center.y);
     this.game.canvas.globalAlpha = this.fade / 20;
     this.game.canvas.stroke();
-    this.game.canvas.font = '10px Arial';
-    this.game.canvas.fillText(this.damage, monster_center.x - 5, monster_center.y - 15);
     this.game.canvas.globalAlpha = 1;
     this.fade--;
     if (this.fade == 0)
@@ -285,8 +309,12 @@ Bullet.prototype.draw = function () {
 };
 
 Tower.prototype.draw = function () {
-    this.game.canvas.fillStyle = this.getLevel().color;
-    this.game.canvas.fillRect(this.x + 4, this.y + 4, Config.GRID_SIZE - 8, Config.GRID_SIZE - 8);
+    Tower.drawAt(this.game.canvas, this.getLevel().color, this.x, this.y);
+};
+
+Tower.drawAt = function (canvas, color, x, y) {
+    canvas.fillStyle = color;
+    canvas.fillRect(x + 4, y + 4, Config.GRID_SIZE - 8, Config.GRID_SIZE - 8);
 };
 
 Tower.prototype.getLevel = function () {
@@ -320,7 +348,7 @@ Tower.prototype.upgrade = function () {
 };
 
 Tower.prototype.attack = function () {
-    if (this.reloaded < 30)
+    if (this.reloaded < this.getLevel().reload)
     {
         this.reloaded++;
         return;
@@ -477,16 +505,14 @@ Monster.prototype.draw = function () {
     this.game.canvas.fillRect(this.x + 5, this.y + 5, Config.GRID_SIZE - 10, Config.GRID_SIZE - 10);
 
     this.game.canvas.globalAlpha = this.show_life / 20;
-/*    this.game.canvas.fillStyle = 'black';
-    this.game.canvas.fillRect(this.x + 1, this.y - 3, Config.GRID_SIZE - 2, 6);*/
+
     this.game.canvas.fillStyle = 'red';
     this.game.canvas.fillRect(this.x + 2, this.y - 2, Config.GRID_SIZE - 4, 4);
+
     this.game.canvas.fillStyle = 'green';
     this.game.canvas.fillRect(this.x + 2, this.y - 2, Math.ceil((this.life / this.original_life) * (Config.GRID_SIZE - 4)), 4);
+
     this.game.canvas.globalAlpha = 1;
-/*    this.game.canvas.fillStyle = 'black';
-    this.game.canvas.font = '10px Arial';
-    this.game.canvas.fillText(this.life, this.x + 4, this.y);*/
     if (this.show_life != 0)
     {
         this.show_life--;
@@ -527,11 +553,36 @@ Tile.prototype.draw = function () {
             break;
     }
     this.game.canvas.fillRect(this.x * Config.GRID_SIZE, this.y * Config.GRID_SIZE, Config.GRID_SIZE, Config.GRID_SIZE);
-    if (this.frame)
+    if (this.frame && this.game.building)
     {
-        this.game.canvas.fillStyle = 'rgba(255, 125, 0, 0.5)';
-        this.game.canvas.fillRect(this.x * Config.GRID_SIZE, this.y * Config.GRID_SIZE, Config.GRID_SIZE, Config.GRID_SIZE);
     }
+};
+
+Tile.prototype.drawFrame = function () {
+    if ( ! this.game.building)
+    {
+        return;
+    }
+    if (this.type == Tile.EMPTY)
+    {
+        this.game.canvas.globalAlpha = 0.7;
+    }
+    else
+    {
+        this.game.canvas.globalAlpha = 0.3;
+    }
+    Tower.drawAt(this.game.canvas, Towers[this.game.building][1].color, this.x * Config.GRID_SIZE, this.y * Config.GRID_SIZE);
+    this.game.canvas.beginPath();
+    this.game.canvas.arc(
+        this.x * Config.GRID_SIZE + Config.GRID_SIZE / 2,
+        this.y * Config.GRID_SIZE + Config.GRID_SIZE / 2,
+        Towers[this.game.building][1].range,
+        2 * Math.PI,
+        false
+    );
+    this.game.canvas.strokeStyle = 'black';
+    this.game.canvas.stroke();
+    this.game.canvas.globalAlpha = 1;
 };
 
 Tile.ROAD = 'road';
@@ -541,6 +592,7 @@ Monster.GREEN = 'green';
 Monster.RED = 'red';
 
 Tower.BLUE = 'blue';
+Tower.BLACK = 'black';
 
 Monsters = {};
 Monsters[Monster.GREEN] = {
@@ -558,19 +610,32 @@ Towers[Tower.BLUE] = {
     1 : {
         damage : 20,
         range : 100,
+        reload : 30,
         color : '#37C5DB'
     },
     2 : {
         damage : 30,
         range : 110,
+        reload : 30,
         color : '#3770DB'
     },
     3 : {
         damage : 40,
         range : 120,
+        reload : 30,
         color : '#3F37DB'
     }
-}
+};
+
+Towers[Tower.BLACK] = {
+    1 : {
+        damage : 2,
+        range : 50,
+        reload : 2,
+        color : 'black'
+    }
+};
+
 Level = {
     start : {
         x : 1,
