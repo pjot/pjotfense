@@ -27,6 +27,7 @@ Game = function (canvas_id) {
     this.counter = 0;
     this.monster_id = 0;
     this.lives = 20;
+    this.current_level = 0;
 };
 
 Game.prototype.loop = function () {
@@ -44,19 +45,25 @@ Game.prototype.doLoop = function () {
         this.towers[t].attack();
     }
     this.draw();
-    if (this.counter > 30)
+    if (this.counter > 30 && this.spawn > 0)
     {
         if (Math.random() > 0.5)
         {
-            this.spawnMonster(Monster.RED);
+            this.spawnMonster(Monster.RED, Math.round(40 * this.current_level));
         }
         else
         {
-            this.spawnMonster(Monster.GREEN);
+            this.spawnMonster(Monster.GREEN, Math.round(70 * this.current_level));
         }
+        this.spawn--;
         this.counter = 0;
     }
     this.counter++;
+};
+
+Game.prototype.makeWave = function () {
+    this.current_level++;
+    this.spawn = 20;
 };
 
 Game.prototype.addTower = function () {
@@ -127,8 +134,8 @@ Game.prototype.loadLevel = function (level) {
     }
 };
 
-Game.prototype.spawnMonster = function (type) {
-    monster = new Monster(this.level.start.x, this.level.start.y, type, this);
+Game.prototype.spawnMonster = function (type, life) {
+    monster = new Monster(this.level.start.x, this.level.start.y, type, life, this);
     this.monsters.push(monster);
     monster.draw();
 };
@@ -314,14 +321,14 @@ Tower.prototype.distanceTo = function (monster) {
     return Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
 };
 
-Monster = function (x, y, type, game) {
+Monster = function (x, y, type, life, game) {
     this.x = x * Config.GRID_SIZE;
     this.y = y * Config.GRID_SIZE;
     this.type = type;
     this.game = game;
     this.current_tile = game.getTileAt(x, y);
     this.visited_tiles = [this.current_tile];
-    this.life = this.getDefault().life;
+    this.life = life;
     this.distance = 0;
     this.id = ++game.monster_id;
 };
@@ -487,13 +494,11 @@ Tower.BLUE = 'blue';
 
 Monsters = {};
 Monsters[Monster.GREEN] = {
-    life : 70,
     speed : 1,
     color : 'green'
 };
 
 Monsters[Monster.RED] = {
-    life : 40,
     speed : 2,
     color : 'red'
 };
