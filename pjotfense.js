@@ -27,6 +27,7 @@ Game = function (canvas_id) {
     this.bullets = [];
     this.counter = 0;
     this.monster_id = 0;
+    this.bullet_id = 0;
     this.lives = 20;
     this.current_level = 0;
     this.wave_counter = Config.WAVE_COUNT;
@@ -238,31 +239,43 @@ Tower.prototype.getCenter = function () {
     };
 };
 
-Bullet = function (tower, monster, game) {
+Bullet = function (tower, monster, game, damage) {
     this.tower = tower;
     this.monster = monster;
     this.game = game;
-    this.fade = 10;
-    this.removed = false;
+    this.fade = 20;
+    this.damage = damage;
+    this.id = ++game.bullet_id;
+};
+
+Bullet.prototype.is = function (bullet) {
+    return this.id == bullet.id;
 };
 
 Bullet.prototype.remove = function () {
-    this.removed = true;
+    for (b in this.game.bullets)
+    {
+        bullet = this.game.bullets[b];
+        if (this.is(bullet))
+        {
+            this.game.bullets.splice(b, 1);
+            return;
+        }
+    }
 };
 
 Bullet.prototype.draw = function () {
-    if (this.removed)
-    {
-        return;
-    }
     tower_center = this.tower.getCenter();
     monster_center = this.monster.getCenter();
     this.game.canvas.beginPath();
     this.game.canvas.strokeStyle = 'white';
+    this.game.canvas.fillStyle = 'black';
     this.game.canvas.moveTo(tower_center.x, tower_center.y);
     this.game.canvas.lineTo(monster_center.x, monster_center.y);
-    this.game.canvas.globalAlpha = this.fade / 10;
+    this.game.canvas.globalAlpha = this.fade / 20;
     this.game.canvas.stroke();
+    this.game.canvas.font = '10px Arial';
+    this.game.canvas.fillText(this.damage, monster_center.x - 5, monster_center.y - 15);
     this.game.canvas.globalAlpha = 1;
     this.fade--;
     if (this.fade == 0)
@@ -282,8 +295,6 @@ Tower.prototype.getLevel = function () {
 
 Tower.prototype.fireAt = function (monster)
 {
-    bullet = new Bullet(this, monster, this.game);
-    this.game.bullets.push(bullet);
     damage = this.getLevel().damage;
     if (monster.life > damage)
     {
@@ -293,9 +304,12 @@ Tower.prototype.fireAt = function (monster)
     }
     else
     {
-        monster.die()
+        damage = monster.life;
         this.xp += monster.life;
+        monster.die()
     }
+    bullet = new Bullet(this, monster, this.game, damage);
+    this.game.bullets.push(bullet);
 };
 
 Tower.prototype.upgrade = function () {
@@ -468,7 +482,7 @@ Monster.prototype.draw = function () {
     this.game.canvas.fillStyle = 'red';
     this.game.canvas.fillRect(this.x + 2, this.y - 2, Config.GRID_SIZE - 4, 4);
     this.game.canvas.fillStyle = 'green';
-    this.game.canvas.fillRect(this.x + 2, this.y - 2, (this.life / this.original_life) * Config.GRID_SIZE - 4, 4);
+    this.game.canvas.fillRect(this.x + 2, this.y - 2, Math.ceil((this.life / this.original_life) * (Config.GRID_SIZE - 4)), 4);
     this.game.canvas.globalAlpha = 1;
 /*    this.game.canvas.fillStyle = 'black';
     this.game.canvas.font = '10px Arial';
