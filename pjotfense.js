@@ -11,6 +11,7 @@ window.requestFrame = (function () {
 
 Config = {
     GRID_SIZE : 20,
+    WAVE_COUNT : 60 * 30
 };
 Config.HEIGHT = 600 / Config.GRID_SIZE;
 Config.WIDTH = 800 / Config.GRID_SIZE;
@@ -28,6 +29,7 @@ Game = function (canvas_id) {
     this.monster_id = 0;
     this.lives = 20;
     this.current_level = 0;
+    this.wave_counter = Config.WAVE_COUNT;
 };
 
 Game.prototype.loop = function () {
@@ -36,6 +38,7 @@ Game.prototype.loop = function () {
 };
 
 Game.prototype.doLoop = function () {
+    this.waveCounter();
     for (m in this.monsters)
     {
         this.monsters[m].move();
@@ -64,6 +67,7 @@ Game.prototype.doLoop = function () {
 Game.prototype.makeWave = function () {
     this.current_level++;
     this.spawn = 20;
+    this.wave_counter = Config.WAVE_COUNT;
 };
 
 Game.prototype.addTower = function () {
@@ -72,6 +76,11 @@ Game.prototype.addTower = function () {
         tile = this.tiles[t];
         if (tile.frame)
         {
+            if (tile.x == Config.WIDTH - 1 && tile.y == 0)
+            {
+                this.makeWave();
+                return;
+            }
             if (tower = this.getTowerAt(tile.x, tile.y))
             {
                 tower.upgrade();
@@ -177,6 +186,17 @@ Game.prototype.draw = function () {
     {
         this.bullets[b].draw();
     }
+    this.canvas.fillStyle = 'black';
+    this.canvas.font = '12px Arial';
+    this.canvas.fillText(Math.ceil(this.wave_counter / 60), Config.WIDTH * Config.GRID_SIZE - 18, 15);
+};
+
+Game.prototype.waveCounter = function () {
+    this.wave_counter--;
+    if (this.wave_counter == 0)
+    {
+        this.makeWave();
+    }
 };
 
 Game.init = function () {
@@ -268,6 +288,7 @@ Tower.prototype.fireAt = function (monster)
     if (monster.life > damage)
     {
         monster.life -= damage;
+        monster.show_life = 60;
         this.xp += damage;
     }
     else
@@ -329,8 +350,10 @@ Monster = function (x, y, type, life, game) {
     this.current_tile = game.getTileAt(x, y);
     this.visited_tiles = [this.current_tile];
     this.life = life;
+    this.original_life = life;
     this.distance = 0;
     this.id = ++game.monster_id;
+    this.show_life = 0;
 };
 
 Monster.prototype.is = function (monster) {
@@ -438,9 +461,22 @@ Monster.prototype.draw = function () {
     }
     this.game.canvas.fillStyle = this.getDefault().color;
     this.game.canvas.fillRect(this.x + 5, this.y + 5, Config.GRID_SIZE - 10, Config.GRID_SIZE - 10);
-    this.game.canvas.fillStyle = 'black';
+
+    this.game.canvas.globalAlpha = this.show_life / 20;
+/*    this.game.canvas.fillStyle = 'black';
+    this.game.canvas.fillRect(this.x + 1, this.y - 3, Config.GRID_SIZE - 2, 6);*/
+    this.game.canvas.fillStyle = 'red';
+    this.game.canvas.fillRect(this.x + 2, this.y - 2, Config.GRID_SIZE - 4, 4);
+    this.game.canvas.fillStyle = 'green';
+    this.game.canvas.fillRect(this.x + 2, this.y - 2, (this.life / this.original_life) * Config.GRID_SIZE - 4, 4);
+    this.game.canvas.globalAlpha = 1;
+/*    this.game.canvas.fillStyle = 'black';
     this.game.canvas.font = '10px Arial';
-    this.game.canvas.fillText(this.life, this.x + 4, this.y);
+    this.game.canvas.fillText(this.life, this.x + 4, this.y);*/
+    if (this.show_life != 0)
+    {
+        this.show_life--;
+    }
 };
 
 Monster.prototype.getDefault = function () {
