@@ -33,6 +33,7 @@ Game = function (canvas_id) {
     this.spawn = 0;
     this.current_level = 0;
     this.framed = false;
+    this.coins = 200;
     this.wave_counter = Config.WAVE_COUNT;
     this.building = false;
 };
@@ -158,8 +159,12 @@ Game.prototype.buildTower = function (x, y, type) {
     {
         return;
     }
-    tower = new Tower(x, y, type, this);
-    this.towers.push(tower);
+    if (this.coins > Towers[type][1].cost)
+    {
+        tower = new Tower(x, y, type, this);
+        this.towers.push(tower);
+        this.coins -= Towers[type][1].cost;
+    }
 };
 
 Game.prototype.frame = function (tile) {
@@ -197,6 +202,9 @@ Game.prototype.draw = function () {
     }
     this.canvas.font = '12px Arial';
     this.canvas.fillText(Math.ceil(this.wave_counter / 60), Config.WIDTH * Config.GRID_SIZE - 18, 15);
+
+    this.canvas.fillStyle = 'black';
+    this.canvas.fillText('$' + this.coins, Config.WIDTH * Config.GRID_SIZE - 150, 15);
 };
 
 Game.prototype.waveCounter = function () {
@@ -343,7 +351,11 @@ Tower.prototype.fireAt = function (monster)
 Tower.prototype.upgrade = function () {
     if (Towers[this.type][this.level + 1])
     {
-        this.level++;
+        if (this.game.coins > Towers[this.type][this.level + 1].cost)
+        {
+            this.game.coins -= Towers[this.type][this.level + 1].cost; 
+            this.level++;
+        }
     }
 };
 
@@ -409,6 +421,7 @@ Monster.prototype.die = function () {
         if (this.is(monster))
         {
             this.game.monsters.splice(m, 1);
+            this.game.coins += Math.floor(this.original_life / 5)
             return;
         }
     }
@@ -608,18 +621,21 @@ Monsters[Monster.RED] = {
 Towers = {};
 Towers[Tower.BLUE] = {
     1 : {
+        cost : 70,
         damage : 20,
         range : 100,
         reload : 30,
         color : '#37C5DB'
     },
     2 : {
+        cost : 100,
         damage : 30,
         range : 110,
         reload : 30,
         color : '#3770DB'
     },
     3 : {
+        cost : 200,
         damage : 40,
         range : 120,
         reload : 30,
@@ -629,6 +645,7 @@ Towers[Tower.BLUE] = {
 
 Towers[Tower.BLACK] = {
     1 : {
+        cost : 30,
         damage : 2,
         range : 50,
         reload : 2,
