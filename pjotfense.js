@@ -56,9 +56,14 @@ Game.prototype.doLoop = function () {
     this.draw();
     if (this.counter > 30 && this.spawn > 0)
     {
-        if (Math.random() > 0.5)
+        r = Math.random();
+        if (r > 0.66)
         {
             this.spawnMonster(Monster.RED, Math.round(40 * this.current_level));
+        }
+        if (r < 0.33)
+        {
+            this.spawnMonster(Monster.YELLOW, Math.round(120 * this.current_level));
         }
         else
         {
@@ -603,6 +608,7 @@ Tile.EMPTY = 'empty';
 
 Monster.GREEN = 'green';
 Monster.RED = 'red';
+Monster.YELLOW = 'yellow';
 
 Tower.BLUE = 'blue';
 Tower.BLACK = 'black';
@@ -616,6 +622,11 @@ Monsters[Monster.GREEN] = {
 Monsters[Monster.RED] = {
     speed : 2,
     color : 'red'
+};
+
+Monsters[Monster.YELLOW] = {
+    speed : 0.5,
+    color : 'yellow'
 };
 
 Towers = {};
