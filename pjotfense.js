@@ -342,6 +342,14 @@ Bullet.prototype.done = function () {
 
 Tower.prototype.draw = function () {
     Tower.drawAt(this.game.canvas, this.getLevel().color, this.x, this.y);
+    next_level = this.getNextLevel();
+    if (next_level && this.xp > next_level.xp)
+    {
+        this.game.canvas.strokeStyle = this.game.coins >= next_level.cost ? 'green' : 'red';
+        this.game.canvas.beginPath();
+        this.game.canvas.rect(this.x + 4.5, this.y + 4.5, Config.GRID_SIZE - 8, Config.GRID_SIZE - 8);
+        this.game.canvas.stroke();
+    }
 };
 
 Tower.prototype.drawRange = function () {
@@ -376,12 +384,17 @@ Tower.prototype.fireAt = function (monster)
     this.game.bullets.push(bullet);
 };
 
+Tower.prototype.getNextLevel = function () {
+    return Towers[this.type][this.level + 1];
+};
+
 Tower.prototype.upgrade = function () {
-    if (Towers[this.type][this.level + 1])
+    next_level = this.getNextLevel();
+    if (next_level)
     {
-        if (this.game.coins > Towers[this.type][this.level + 1].cost)
+        if (this.game.coins > next_level.cost && this.xp > next_level.xp)
         {
-            this.game.coins -= Towers[this.type][this.level + 1].cost; 
+            this.game.coins -= next_level.cost; 
             this.level++;
         }
     }
@@ -771,6 +784,7 @@ Towers[Tower.BLUE] = {
         beams : 1,
         range : 110,
         reload : 20,
+        xp : 100,
         bullet : Bullet.ROCKET,
         color : '#3770DB'
     },
@@ -780,6 +794,7 @@ Towers[Tower.BLUE] = {
         beams : 1,
         range : 120,
         reload : 10,
+        xp : 250,
         bullet : Bullet.ROCKET,
         color : '#3F37DB'
     },
@@ -789,6 +804,7 @@ Towers[Tower.BLUE] = {
         beams : 1,
         range : 500,
         reload : 10,
+        xp : 600,
         bullet : Bullet.ROCKET,
         color : 'blue'
     }
@@ -809,6 +825,7 @@ Towers[Tower.BLACK] = {
         damage : 2,
         range : 100,
         beams : 2,
+        xp : 40,
         reload : 5,
         bullet : Bullet.LASER,
         color : 'black'
@@ -818,6 +835,7 @@ Towers[Tower.BLACK] = {
         damage : 2,
         range : 200,
         beams : 3,
+        xp : 100,
         reload : 5,
         bullet : Bullet.LASER,
         color : 'black'
