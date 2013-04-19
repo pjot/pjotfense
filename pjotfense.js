@@ -289,7 +289,7 @@ Bullet = function (tower, monster, game, damage, type) {
     this.tower = tower;
     this.monster = monster;
     this.game = game;
-    this.fade = 20;
+    this.fade = Bullets[Bullet.LASER].fade;
     this.damage = damage;
     this.type = type;
     this.draw = Bullets[this.type].draw;
@@ -409,10 +409,15 @@ Tower.prototype.attack = function () {
         }
         return a.distance > b.distance ? 1 : -1;
     });
-    if (fire_monsters.length > 0)
+    beams = this.getLevel().beams;
+    while (beams > 0)
     {
-        this.fireAt(fire_monsters.pop());
-        this.reloaded = 0;
+        if (fire_monsters.length > 0)
+        {
+            this.fireAt(fire_monsters.pop());
+            this.reloaded = 0;
+        }
+        beams--;
     }
 };
 
@@ -659,6 +664,7 @@ Bullet.LASER = 'laser';
 Bullet.ROCKET = 'rocket';
 Bullets[Bullet.LASER] = {
     speed : 0,
+    fade : 15,
     draw : function () {
         tower_center = this.tower.getCenter();
         monster_center = this.monster.getCenter();
@@ -666,7 +672,7 @@ Bullets[Bullet.LASER] = {
         this.game.canvas.strokeStyle = 'red';
         this.game.canvas.moveTo(tower_center.x, tower_center.y);
         this.game.canvas.lineTo(monster_center.x, monster_center.y);
-        this.game.canvas.globalAlpha = this.fade / 20;
+        this.game.canvas.globalAlpha = this.fade / Bullets[Bullet.LASER].fade;
         this.game.canvas.stroke();
         this.game.canvas.globalAlpha = 1;
         this.fade--;
@@ -753,6 +759,7 @@ Towers[Tower.BLUE] = {
     1 : {
         cost : 70,
         damage : 20,
+        beams : 1,
         range : 100,
         reload : 30,
         bullet : Bullet.ROCKET,
@@ -761,6 +768,7 @@ Towers[Tower.BLUE] = {
     2 : {
         cost : 100,
         damage : 30,
+        beams : 1,
         range : 110,
         reload : 20,
         bullet : Bullet.ROCKET,
@@ -769,6 +777,7 @@ Towers[Tower.BLUE] = {
     3 : {
         cost : 200,
         damage : 40,
+        beams : 1,
         range : 120,
         reload : 10,
         bullet : Bullet.ROCKET,
@@ -777,6 +786,7 @@ Towers[Tower.BLUE] = {
     4 : {
         cost : 500,
         damage : 150,
+        beams : 1,
         range : 500,
         reload : 10,
         bullet : Bullet.ROCKET,
@@ -789,6 +799,25 @@ Towers[Tower.BLACK] = {
         cost : 30,
         damage : 2,
         range : 50,
+        beams : 1,
+        reload : 5,
+        bullet : Bullet.LASER,
+        color : 'black'
+    },
+    2 : {
+        cost : 50,
+        damage : 2,
+        range : 100,
+        beams : 2,
+        reload : 5,
+        bullet : Bullet.LASER,
+        color : 'black'
+    },
+    3 : {
+        cost : 100,
+        damage : 2,
+        range : 200,
+        beams : 3,
         reload : 5,
         bullet : Bullet.LASER,
         color : 'black'
