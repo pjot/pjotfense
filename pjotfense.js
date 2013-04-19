@@ -285,8 +285,9 @@ Bullet = function (tower, monster, game, damage, type) {
     this.fade = 20;
     this.damage = damage;
     this.type = type;
-    this.travel_time = Bullets[this.type].travel_time;
     this.draw = Bullets[this.type].draw;
+    this.x = this.tower.getCenter().x;
+    this.y = this.tower.getCenter().y;
     this.id = ++game.bullet_id;
     if (this.type == Bullet.LASER)
     {
@@ -303,6 +304,13 @@ Bullet = function (tower, monster, game, damage, type) {
             this.monster.die()
         }
     }
+};
+
+Bullet.prototype.distanceLeft = function () {
+    monster_center = this.monster.getCenter();
+    dx = Math.abs(monster_center.x - this.x);
+    dy = Math.abs(monster_center.y - this.y);
+    return Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
 };
 
 Bullet.prototype.is = function (bullet) {
@@ -627,13 +635,12 @@ Bullets = {};
 Bullet.LASER = 'laser';
 Bullet.ROCKET = 'rocket';
 Bullets[Bullet.LASER] = {
-    travel_time : 0,
+    speed : 0,
     draw : function () {
         tower_center = this.tower.getCenter();
         monster_center = this.monster.getCenter();
         this.game.canvas.beginPath();
-        this.game.canvas.strokeStyle = 'white';
-        this.game.canvas.fillStyle = 'black';
+        this.game.canvas.strokeStyle = 'red';
         this.game.canvas.moveTo(tower_center.x, tower_center.y);
         this.game.canvas.lineTo(monster_center.x, monster_center.y);
         this.game.canvas.globalAlpha = this.fade / 20;
@@ -648,25 +655,14 @@ Bullets[Bullet.LASER] = {
 };
 
 Bullets[Bullet.ROCKET] = {
-    travel_time : 20,
+    speed : 3,
     draw : function () {
         if (this.monster.life == 0)
         {
             this.remove();
             return;
         }
-        tower_center = this.tower.getCenter();
-        monster_center = this.monster.getCenter();
-        current_travel_time = 1 - this.travel_time / Bullets[Bullet.ROCKET].travel_time;
-        current_x = (monster_center.x - tower_center.x) * current_travel_time + tower_center.x;
-        current_y = (monster_center.y - tower_center.y) * current_travel_time + tower_center.y;
-
-        this.game.canvas.beginPath();
-        this.game.canvas.fillStyle = 'white';
-        this.game.canvas.arc(current_x, current_y, 2, 2 * Math.PI, false);
-        this.game.canvas.fill();
-        this.travel_time--;
-        if (this.travel_time < 0)
+        if (this.distanceLeft() < Bullets[Bullet.ROCKET].speed)
         {
             if (this.monster.life > this.damage)
             {
@@ -682,6 +678,31 @@ Bullets[Bullet.ROCKET] = {
             }
             this.remove();
         }
+        distance_left = this.distanceLeft();
+        monster_center = this.monster.getCenter();
+        this.x = this.x + (monster_center.x - this.x) * (Bullets[Bullet.ROCKET].speed / distance_left);
+        this.y = this.y + (monster_center.y - this.y) * (Bullets[Bullet.ROCKET].speed / distance_left);
+
+        if (this.distanceLeft() < Bullets[Bullet.ROCKET].speed)
+        {
+            if (this.monster.life > this.damage)
+            {
+                this.monster.life -= this.damage;
+                this.monster.show_life = 60;
+                this.tower.xp += this.damage;
+            }
+            else
+            {
+                this.damage = this.monster.life;
+                this.tower.xp += this.monster.life;
+                this.monster.die()
+            }
+            this.remove();
+        }
+        this.game.canvas.beginPath();
+        this.game.canvas.fillStyle = 'white';
+        this.game.canvas.arc(this.x, this.y, 2, 2 * Math.PI, false);
+        this.game.canvas.fill();
     }
 };
 
@@ -710,6 +731,14 @@ Towers[Tower.BLUE] = {
         reload : 10,
         bullet : Bullet.ROCKET,
         color : '#3F37DB'
+    },
+    4 : {
+        cost : 500,
+        damage : 150,
+        range : 500,
+        reload : 10,
+        bullet : Bullet.ROCKET,
+        color : 'blue'
     }
 };
 
