@@ -164,7 +164,7 @@ Game.prototype.buildTower = function (x, y, type) {
     {
         return;
     }
-    if (this.coins > Towers[type][1].cost)
+    if (this.coins >= Towers[type][1].cost)
     {
         tower = new Tower(x, y, type, this);
         this.towers.push(tower);
@@ -195,7 +195,14 @@ Game.prototype.draw = function () {
     }
     if (this.framed)
     {
-        this.framed.drawFrame();
+        if (framed_tower = this.getTowerAt(this.framed.x, this.framed.y))
+        {
+            framed_tower.drawRange();
+        }
+        else
+        {
+            this.framed.drawFrame();
+        }
     }
     if (this.spawn == 0)
     {
@@ -335,6 +342,22 @@ Bullet.prototype.done = function () {
 
 Tower.prototype.draw = function () {
     Tower.drawAt(this.game.canvas, this.getLevel().color, this.x, this.y);
+};
+
+Tower.prototype.drawRange = function () {
+    this.game.canvas.globalAlpha = 0.7;
+    center = this.getCenter();
+    this.game.canvas.beginPath();
+    this.game.canvas.arc(
+        center.x,
+        center.y,
+        this.getLevel().range,
+        2 * Math.PI,
+        false
+    );
+    this.game.canvas.strokeStyle = 'black';
+    this.game.canvas.stroke();
+    this.game.canvas.globalAlpha = 1;
 };
 
 Tower.drawAt = function (canvas, color, x, y) {
