@@ -655,11 +655,30 @@ Bullets[Bullet.LASER] = {
 };
 
 Bullets[Bullet.ROCKET] = {
-    speed : 3,
+    speed : 4,
     draw : function () {
         if (this.monster.life == 0)
         {
-            this.remove();
+            fire_monsters = []
+            for (m in this.game.monsters)
+            {
+                fire_monsters.push(this.game.monsters[m]);
+            }
+            fire_monsters.sort(function (a, b) {
+                if (a.distance == b.distance)
+                {
+                    return 0;
+                }
+                return a.distance > b.distance ? 1 : -1;
+            });
+            if (fire_monsters.length > 0)
+            {
+                this.monster = fire_monsters.pop();
+            }
+            else
+            {
+                this.remove();
+            }
             return;
         }
         if (this.distanceLeft() < Bullets[Bullet.ROCKET].speed)
@@ -747,7 +766,7 @@ Towers[Tower.BLACK] = {
         cost : 30,
         damage : 2,
         range : 50,
-        reload : 2,
+        reload : 5,
         bullet : Bullet.LASER,
         color : 'black'
     }
