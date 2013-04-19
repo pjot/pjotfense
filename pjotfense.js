@@ -278,13 +278,31 @@ Tower.prototype.getCenter = function () {
     };
 };
 
-Bullet = function (tower, monster, game, damage) {
+Bullet = function (tower, monster, game, damage, type) {
     this.tower = tower;
     this.monster = monster;
     this.game = game;
     this.fade = 20;
     this.damage = damage;
+    this.type = type;
+    this.travel_time = Bullets[this.type].travel_time;
+    this.draw = Bullets[this.type].draw;
     this.id = ++game.bullet_id;
+    if (this.type == Bullet.LASER)
+    {
+        if (this.monster.life > this.damage)
+        {
+            this.monster.life -= this.damage;
+            this.monster.show_life = 60;
+            this.tower.xp += this.damage;
+        }
+        else
+        {
+            this.damage = this.monster.life;
+            this.tower.xp += this.monster.life;
+            this.monster.die()
+        }
+    }
 };
 
 Bullet.prototype.is = function (bullet) {
@@ -303,22 +321,8 @@ Bullet.prototype.remove = function () {
     }
 };
 
-Bullet.prototype.draw = function () {
-    tower_center = this.tower.getCenter();
-    monster_center = this.monster.getCenter();
-    this.game.canvas.beginPath();
-    this.game.canvas.strokeStyle = 'white';
-    this.game.canvas.fillStyle = 'black';
-    this.game.canvas.moveTo(tower_center.x, tower_center.y);
-    this.game.canvas.lineTo(monster_center.x, monster_center.y);
-    this.game.canvas.globalAlpha = this.fade / 20;
-    this.game.canvas.stroke();
-    this.game.canvas.globalAlpha = 1;
-    this.fade--;
-    if (this.fade == 0)
-    {
-        this.remove();
-    }
+
+Bullet.prototype.done = function () {
 };
 
 Tower.prototype.draw = function () {
@@ -336,20 +340,8 @@ Tower.prototype.getLevel = function () {
 
 Tower.prototype.fireAt = function (monster)
 {
-    damage = this.getLevel().damage;
-    if (monster.life > damage)
-    {
-        monster.life -= damage;
-        monster.show_life = 60;
-        this.xp += damage;
-    }
-    else
-    {
-        damage = monster.life;
-        this.xp += monster.life;
-        monster.die()
-    }
-    bullet = new Bullet(this, monster, this.game, damage);
+    level = this.getLevel();
+    bullet = new Bullet(this, monster, this.game, level.damage, level.bullet);
     this.game.bullets.push(bullet);
 };
 
@@ -420,6 +412,7 @@ Monster.prototype.is = function (monster) {
 };
 
 Monster.prototype.die = function () {
+    this.life = 0;
     for (m in this.game.monsters)
     {
         monster = this.game.monsters[m];
@@ -629,6 +622,69 @@ Monsters[Monster.YELLOW] = {
     color : 'yellow'
 };
 
+Bullets = {};
+
+Bullet.LASER = 'laser';
+Bullet.ROCKET = 'rocket';
+Bullets[Bullet.LASER] = {
+    travel_time : 0,
+    draw : function () {
+        tower_center = this.tower.getCenter();
+        monster_center = this.monster.getCenter();
+        this.game.canvas.beginPath();
+        this.game.canvas.strokeStyle = 'white';
+        this.game.canvas.fillStyle = 'black';
+        this.game.canvas.moveTo(tower_center.x, tower_center.y);
+        this.game.canvas.lineTo(monster_center.x, monster_center.y);
+        this.game.canvas.globalAlpha = this.fade / 20;
+        this.game.canvas.stroke();
+        this.game.canvas.globalAlpha = 1;
+        this.fade--;
+        if (this.fade == 0)
+        {
+            this.remove();
+        }
+    },
+};
+
+Bullets[Bullet.ROCKET] = {
+    travel_time : 20,
+    draw : function () {
+        if (this.monster.life == 0)
+        {
+            this.remove();
+            return;
+        }
+        tower_center = this.tower.getCenter();
+        monster_center = this.monster.getCenter();
+        current_travel_time = 1 - this.travel_time / Bullets[Bullet.ROCKET].travel_time;
+        current_x = (monster_center.x - tower_center.x) * current_travel_time + tower_center.x;
+        current_y = (monster_center.y - tower_center.y) * current_travel_time + tower_center.y;
+
+        this.game.canvas.beginPath();
+        this.game.canvas.fillStyle = 'white';
+        this.game.canvas.arc(current_x, current_y, 2, 2 * Math.PI, false);
+        this.game.canvas.fill();
+        this.travel_time--;
+        if (this.travel_time < 0)
+        {
+            if (this.monster.life > this.damage)
+            {
+                this.monster.life -= this.damage;
+                this.monster.show_life = 60;
+                this.tower.xp += this.damage;
+            }
+            else
+            {
+                this.damage = this.monster.life;
+                this.tower.xp += this.monster.life;
+                this.monster.die()
+            }
+            this.remove();
+        }
+    }
+};
+
 Towers = {};
 Towers[Tower.BLUE] = {
     1 : {
@@ -636,20 +692,23 @@ Towers[Tower.BLUE] = {
         damage : 20,
         range : 100,
         reload : 30,
+        bullet : Bullet.ROCKET,
         color : '#37C5DB'
     },
     2 : {
         cost : 100,
         damage : 30,
         range : 110,
-        reload : 30,
+        reload : 20,
+        bullet : Bullet.ROCKET,
         color : '#3770DB'
     },
     3 : {
         cost : 200,
         damage : 40,
         range : 120,
-        reload : 30,
+        reload : 10,
+        bullet : Bullet.ROCKET,
         color : '#3F37DB'
     }
 };
@@ -660,6 +719,7 @@ Towers[Tower.BLACK] = {
         damage : 2,
         range : 50,
         reload : 2,
+        bullet : Bullet.LASER,
         color : 'black'
     }
 };
