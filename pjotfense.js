@@ -198,6 +198,7 @@ Game.prototype.draw = function () {
         if (framed_tower = this.getTowerAt(this.framed.x, this.framed.y))
         {
             framed_tower.drawRange();
+            framed_tower.drawInfo();
         }
         else
         {
@@ -347,6 +348,9 @@ Tower.prototype.draw = function () {
     {
         this.game.canvas.strokeStyle = this.game.coins >= next_level.cost ? 'green' : 'red';
         this.game.canvas.beginPath();
+        this.game.canvas.rect(this.x + 3.5, this.y + 3.5, Config.GRID_SIZE - 6, Config.GRID_SIZE - 6);
+        this.game.canvas.stroke();
+        this.game.canvas.beginPath();
         this.game.canvas.rect(this.x + 4.5, this.y + 4.5, Config.GRID_SIZE - 8, Config.GRID_SIZE - 8);
         this.game.canvas.stroke();
     }
@@ -366,6 +370,33 @@ Tower.prototype.drawRange = function () {
     this.game.canvas.strokeStyle = 'black';
     this.game.canvas.stroke();
     this.game.canvas.globalAlpha = 1;
+};
+
+Tower.prototype.drawInfo = function () {
+    this.game.canvas.globalAlpha = 0.7;
+    center = this.getCenter();
+    this.game.canvas.fillStyle = 'white';
+    this.game.canvas.fillRect(center.x + 10, center.y - 20, 120, 100);
+    this.game.canvas.globalAlpha = 1;
+
+    this.game.canvas.fillStyle = 'black';
+    this.game.canvas.font = '12px Arial';
+    level = this.getLevel();
+    next_level = this.getNextLevel();
+
+    stats = level.range + ', ' + level.damage + ', ' + level.beams;
+    this.game.canvas.fillText(stats, center.x + 15, center.y - 10);
+
+    xp = 'XP: ' + this.xp;
+    this.game.canvas.fillText(xp, center.x + 15, center.y + 2);
+    if (next_level)
+    {
+        next = 'Next level: ' + next_level.xp + ', $' + next_level.cost;
+        this.game.canvas.fillText(next, center.x + 15, center.y + 14);
+    }
+
+
+
 };
 
 Tower.drawAt = function (canvas, color, x, y) {
