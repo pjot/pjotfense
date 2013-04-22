@@ -757,13 +757,13 @@ Bullets[Bullet.LASER] = {
 
 Bullets[Bullet.AREA] = {
     speed : 0,
-    fade : 10,
+    fade : 20,
     draw : function () {
         tower_center = this.tower.getCenter();
         this.game.canvas.beginPath();
         this.game.canvas.fillStyle = 'yellow';
         this.game.canvas.arc(tower_center.x, tower_center.y, this.tower.getLevel().range, Math.PI * 2, false);
-        this.game.canvas.globalAlpha = 0.5 * this.fade / Bullets[Bullet.AREA].fade;
+        this.game.canvas.globalAlpha = 0.2 * this.fade / Bullets[Bullet.AREA].fade;
         this.game.canvas.fill();
         this.game.canvas.globalAlpha = 1;
         this.fade--;
