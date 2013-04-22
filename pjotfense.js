@@ -250,6 +250,9 @@ Game.prototype.keyDown = function (e) {
         case 83: // S
             this.building = Tower.BLUE;
             break;
+        case 68: // D
+            this.building = Tower.YELLOW;
+            break;
         case 27: // Esc
             this.building = false;
             break;
@@ -290,27 +293,50 @@ Bullet = function (tower, monster, game, damage, type) {
     this.tower = tower;
     this.monster = monster;
     this.game = game;
-    this.fade = Bullets[Bullet.LASER].fade;
     this.damage = damage;
     this.type = type;
+    this.fade = Bullets[this.type].fade;
     this.draw = Bullets[this.type].draw;
     this.x = this.tower.getCenter().x;
     this.y = this.tower.getCenter().y;
     this.id = ++game.bullet_id;
-    if (this.type == Bullet.LASER)
+    switch (this.type)
     {
-        if (this.monster.life > this.damage)
-        {
-            this.monster.life -= this.damage;
-            this.monster.show_life = 60;
-            this.tower.xp += this.damage;
-        }
-        else
-        {
-            this.damage = this.monster.life;
-            this.tower.xp += this.monster.life;
-            this.monster.die()
-        }
+        case Bullet.LASER:
+            if (this.monster.life > this.damage)
+            {
+                this.monster.life -= this.damage;
+                this.monster.show_life = 60;
+                this.tower.xp += this.damage;
+            }
+            else
+            {
+                this.damage = this.monster.life;
+                this.tower.xp += this.monster.life;
+                this.monster.die()
+            }
+        break;
+        case Bullet.AREA:
+            for (m in this.game.monsters)
+            {
+                monster = this.game.monsters[m];
+                if (this.tower.distanceTo(monster) < this.tower.getLevel().range)
+                {
+                    if (monster.life > this.damage)
+                    {
+                        monster.life -= this.damage;
+                        monster.show_life = 60;
+                        this.tower.xp += this.damage;
+                    }
+                    else
+                    {
+                        this.damage = monster.life;
+                        this.tower.xp += monster.life;
+                        monster.die()
+                    }
+                }
+            }
+        break;
     }
 };
 
@@ -685,6 +711,7 @@ Monster.YELLOW = 'yellow';
 
 Tower.BLUE = 'blue';
 Tower.BLACK = 'black';
+Tower.YELLOW = 'yellow';
 
 Monsters = {};
 Monsters[Monster.GREEN] = {
@@ -706,6 +733,7 @@ Bullets = {};
 
 Bullet.LASER = 'laser';
 Bullet.ROCKET = 'rocket';
+Bullet.AREA = 'area';
 Bullets[Bullet.LASER] = {
     speed : 0,
     fade : 15,
@@ -725,6 +753,25 @@ Bullets[Bullet.LASER] = {
             this.remove();
         }
     },
+};
+
+Bullets[Bullet.AREA] = {
+    speed : 0,
+    fade : 10,
+    draw : function () {
+        tower_center = this.tower.getCenter();
+        this.game.canvas.beginPath();
+        this.game.canvas.fillStyle = 'yellow';
+        this.game.canvas.arc(tower_center.x, tower_center.y, this.tower.getLevel().range, Math.PI * 2, false);
+        this.game.canvas.globalAlpha = 0.5 * this.fade / Bullets[Bullet.AREA].fade;
+        this.game.canvas.fill();
+        this.game.canvas.globalAlpha = 1;
+        this.fade--;
+        if (this.fade == 0)
+        {
+            this.remove();
+        }
+    }
 };
 
 Bullets[Bullet.ROCKET] = {
@@ -799,6 +846,29 @@ Bullets[Bullet.ROCKET] = {
 };
 
 Towers = {};
+
+Towers[Tower.YELLOW] = {
+    1 : {
+        cost : 100,
+        damage : 20,
+        beams : 1,
+        range : 80,
+        reload : 60,
+        bullet : Bullet.AREA,
+        color : 'yellow'
+    },
+    2 : {
+        cost : 100,
+        damage : 40,
+        beams : 1,
+        range : 120,
+        reload : 40,
+        bullet : Bullet.AREA,
+        color : 'yellow',
+        xp : 200,
+    },
+};
+
 Towers[Tower.BLUE] = {
     1 : {
         cost : 70,
