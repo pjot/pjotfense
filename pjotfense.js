@@ -11,7 +11,7 @@ window.requestFrame = (function () {
 
 Config = {
     GRID_SIZE : 20,
-    WAVE_COUNT : 60 * 30
+    WAVE_COUNT : 60 * 15
 };
 Config.HEIGHT = 600 / Config.GRID_SIZE;
 Config.WIDTH = 800 / Config.GRID_SIZE;
@@ -36,6 +36,7 @@ Game = function (canvas_id) {
     this.coins = 200;
     this.wave_counter = Config.WAVE_COUNT;
     this.building = false;
+    this.running = true;
 };
 
 Game.prototype.loop = function () {
@@ -43,15 +44,47 @@ Game.prototype.loop = function () {
     window.game.doLoop();
 };
 
+Game.prototype.end = function () {
+    this.running = false;
+};
+
 Game.prototype.doLoop = function () {
+    if (this.running == false)
+    {
+        return;
+    }
     this.waveCounter();
+    for (t in this.tiles)
+    {
+        tile = this.tiles[t];
+        if (tile.type == Tile.GOLD)
+        {
+            if (tile.get_more > 600 && tile.gold < 1000)
+            {
+                tile.gold += 50;
+                tile.get_more = 0;
+            }
+            else
+            {
+                tile.get_more++;
+            }
+        }
+    }
     for (m in this.monsters)
     {
         this.monsters[m].move();
     }
     for (t in this.towers)
     {
-        this.towers[t].attack();
+        tower = this.towers[t];
+        tower.attack();
+        if (tower.type == Tower.GREEN)
+        {
+            for (d in tower.drones)
+            {
+                tower.drones[d].move();
+            }
+        }
     }
     this.draw();
     if (this.counter > 30 && this.spawn > 0)
@@ -84,11 +117,6 @@ Game.prototype.makeWave = function () {
 Game.prototype.clickTile = function () {
     if (this.framed)
     {
-        if (this.framed.x == Config.WIDTH - 1 && this.framed.y == 0 && this.spawn == 0)
-        {
-            this.makeWave();
-            return;
-        }
         if (tower = this.getTowerAt(this.framed.x, this.framed.y))
         {
             tower.upgrade();
@@ -149,7 +177,8 @@ Game.prototype.loadLevel = function (level) {
     for (l in this.level.tiles)
     {
         tile = this.level.tiles[l];
-        this.getTileAt(tile[0], tile[1]).type = Tile.ROAD;
+        type = tile[2];
+        this.getTileAt(tile[0], tile[1]).type = type;
     }
 };
 
@@ -160,7 +189,8 @@ Game.prototype.spawnMonster = function (type, life) {
 };
 
 Game.prototype.buildTower = function (x, y, type) {
-    if (this.getTileAt(x, y).type == Tile.ROAD)
+    current_tile = this.getTileAt(x, y);
+    if (current_tile.type == Tile.ROAD || current_tile.type == Tile.GOLD)
     {
         return;
     }
@@ -181,6 +211,25 @@ Game.prototype.draw = function () {
     {
         this.tiles[i].draw();
     }
+    for (b in this.bullets)
+    {
+        bullet = this.bullets[b];
+        if (bullet.type == Bullet.AREA)
+        {
+            bullet.draw();
+        }
+    }
+    for (t in this.towers)
+    {
+        tower = this.towers[t];
+        if (tower.type == Tower.GREEN)
+        {
+            for (d in tower.drones)
+            {
+                tower.drones[d].draw();
+            }
+        }
+    }
     for (t in this.towers)
     {
         this.towers[t].draw();
@@ -191,7 +240,11 @@ Game.prototype.draw = function () {
     }
     for (b in this.bullets)
     {
-        this.bullets[b].draw();
+        bullet = this.bullets[b];
+        if (bullet.type !== Bullet.AREA)
+        {
+            bullet.draw();
+        }
     }
     if (this.framed)
     {
@@ -205,14 +258,7 @@ Game.prototype.draw = function () {
             this.framed.drawFrame();
         }
     }
-    if (this.spawn == 0)
-    {
-        this.canvas.fillStyle = 'black';
-    }
-    else
-    {
-        this.canvas.fillStyle = 'red';
-    }
+    this.canvas.fillStyle = 'black';
     this.canvas.font = '12px Arial';
     this.canvas.fillText(Math.ceil(this.wave_counter / 60), Config.WIDTH * Config.GRID_SIZE - 18, 15);
 
@@ -253,6 +299,9 @@ Game.prototype.keyDown = function (e) {
         case 68: // D
             this.building = Tower.YELLOW;
             break;
+        case 70: // F
+            this.building = Tower.GREEN;
+            break;
         case 27: // Esc
             this.building = false;
             break;
@@ -280,6 +329,7 @@ Tower = function (x, y, type, game) {
     this.can_fire = true;
     this.reloaded = 0;
     this.xp = 0;
+    this.drones = [];
 };
 
 Tower.prototype.getCenter = function () {
@@ -363,14 +413,127 @@ Bullet.prototype.remove = function () {
     }
 };
 
+Drone = function (tower) {
+    this.tower = tower;
+    this.game = tower.game;
+    this.gold = 0;
+    tower_center = tower.getCenter();
+    this.x = tower_center.x;
+    this.y = tower_center.y;
+    this.id = ++this.game.monster_id;
+    this.get_gold = 4;
+};
 
-Bullet.prototype.done = function () {
+Drone.prototype.is = function (drone) {
+    return this.id == drone.id;
+};
+
+Drone.prototype.move = function () {
+    capacity = this.tower.getLevel().capacity;
+    if (this.gold == capacity)
+    {
+        if (this.distanceTo(this.tower.getCenter()) < 2)
+        {
+            this.game.coins += this.gold;
+            this.remove();
+            return;
+        }
+        this.moveTo(this.tower.getCenter());
+        return;
+    }
+    closest_tile = this.findClosestGold();
+    if (closest_tile)
+    {
+        distance = this.distanceTo(closest_tile.getCenter());
+        if (distance < 2)
+        {
+            this.get_gold++;
+            if (this.get_gold > 4)
+            {
+                this.gold++;
+                closest_tile.gold--;
+                this.get_gold = 0;
+            }
+            return;
+        }
+        tile_center = closest_tile.getCenter();
+        this.moveTo(tile_center);
+    }
+    else
+    {
+        if (this.distanceTo(this.tower.getCenter()) < 2)
+        {
+            this.game.coins += this.gold;
+            this.remove();
+            return;
+        }
+        this.moveTo(this.tower.getCenter());
+    }
+};
+
+Drone.prototype.moveTo = function (object) {
+    distance = this.distanceTo(object);
+    this.x = this.x + (object.x - this.x) / distance;
+    this.y = this.y + (object.y - this.y) / distance;
+};
+
+Drone.prototype.findClosestGold = function () {
+    gold_tiles = [];
+    for (t in this.game.tiles)
+    {
+        tile = this.game.tiles[t];
+        if (tile.type == Tile.GOLD && tile.gold > 0)
+        {
+            gold_tiles.push(tile);
+        }
+    }
+    closest_tile = null;
+    closest_distance = 9999;
+    for (t in gold_tiles)
+    {
+        tile = gold_tiles[t];
+        distance = this.distanceTo(tile.getCenter());
+        if (distance < closest_distance)
+        {
+            closest_distance = distance;
+            closest_tile = tile;
+        }
+    }
+    return closest_tile;
+};
+
+Drone.prototype.remove = function () {
+    for (d in this.tower.drones)
+    {
+        drone = this.tower.drones[d];
+        if (this.is(drone))
+        {
+            this.tower.drones.splice(d, 1);
+            return;
+        }
+    }
+};
+
+Drone.prototype.distanceTo = function (object) {
+    dx = Math.abs(this.x - object.x);
+    dy = Math.abs(this.y - object.y);
+    return Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
+};
+
+Drone.prototype.draw = function () {
+    this.game.canvas.beginPath();
+    this.game.canvas.fillStyle = 'green';
+    this.game.canvas.arc(this.x, this.y, 2, Math.PI * 2, false);
+    this.game.canvas.fill();
+    this.game.canvas.fillStyle = 'black';
+    this.game.canvas.font = '12px Arial';
+    this.game.canvas.fillText(this.gold, this.gold < 10 ? this.x - 3 : this.x - 5, this.y - 5);
 };
 
 Tower.prototype.draw = function () {
     Tower.drawAt(this.game.canvas, this.getLevel().color, this.x, this.y);
     next_level = this.getNextLevel();
-    if (next_level && this.xp > next_level.xp)
+    if (next_level && this.xp >= next_level.xp)
     {
         this.game.canvas.strokeStyle = this.game.coins >= next_level.cost ? 'green' : 'red';
         this.game.canvas.beginPath();
@@ -449,12 +612,18 @@ Tower.prototype.upgrade = function () {
     next_level = this.getNextLevel();
     if (next_level)
     {
-        if (this.game.coins > next_level.cost && this.xp > next_level.xp)
+        if (this.game.coins >= next_level.cost && this.xp >= next_level.xp)
         {
             this.game.coins -= next_level.cost; 
             this.level++;
         }
     }
+};
+
+Tower.prototype.spawnDrone = function () {
+    console.log('spawning drone');
+    drone = new Drone(this);
+    this.drones.push(drone);
 };
 
 Tower.prototype.attack = function () {
@@ -463,6 +632,16 @@ Tower.prototype.attack = function () {
         this.reloaded++;
         return;
     }
+    if (this.type == Tower.GREEN)
+    {
+        if (this.drones.length < this.getLevel().drones)
+        {
+            this.spawnDrone();
+            this.reloaded = 0;
+        }
+        return;
+    }
+
     fire_monsters = []
     for (m in this.game.monsters)
     {
@@ -518,6 +697,11 @@ Monster.prototype.is = function (monster) {
 };
 
 Monster.prototype.die = function () {
+    this.game.coins += Math.floor(this.original_life / 20)
+    this.remove();
+};
+
+Monster.prototype.remove = function () {
     this.life = 0;
     for (m in this.game.monsters)
     {
@@ -525,7 +709,6 @@ Monster.prototype.die = function () {
         if (this.is(monster))
         {
             this.game.monsters.splice(m, 1);
-            this.game.coins += Math.floor(this.original_life / 20)
             return;
         }
     }
@@ -535,8 +718,12 @@ Monster.prototype.move = function () {
     next_tile = this.getNextTile();
     if ( ! next_tile)
     {
-        this.die();
-        game.lives--;
+        this.remove();
+        this.game.lives--;
+        if (this.game.lives == 0)
+        {
+            this.game.end();
+        }
         return;
     }
     current_tile = this.current_tile;
@@ -646,12 +833,14 @@ Tile = function (x, y, type, game) {
     this.type = type;
     this.game = game;
     this.frame = false;
+    this.gold = 1000;
+    this.get_more = 0;
 };
 
 Tile.prototype.getCenter = function () {
     return {
         x : (this.x + 0.5) * Config.GRID_SIZE,
-        y : (this.y + 0.5) * Config.GIRD_SIZE
+        y : (this.y + 0.5) * Config.GRID_SIZE
     };
 };
 
@@ -668,15 +857,20 @@ Tile.prototype.draw = function () {
         case Tile.EMPTY:
             this.game.canvas.fillStyle = '#cccccc';
             break;
+        case Tile.GOLD:
+            this.game.canvas.fillStyle = 'brown';
+            break;
     }
-    this.game.canvas.fillRect(this.x * Config.GRID_SIZE, this.y * Config.GRID_SIZE, Config.GRID_SIZE, Config.GRID_SIZE);
-    if (this.frame && this.game.building)
-    {
-    }
+    this.game.canvas.fillRect(
+        this.x * Config.GRID_SIZE,
+        this.y * Config.GRID_SIZE,
+        Config.GRID_SIZE,
+        Config.GRID_SIZE
+    );
 };
 
 Tile.prototype.drawFrame = function () {
-    if ( ! this.game.building)
+    if ( ! this.game.building && this.type !== Tile.GOLD)
     {
         return;
     }
@@ -688,22 +882,38 @@ Tile.prototype.drawFrame = function () {
     {
         this.game.canvas.globalAlpha = 0.3;
     }
-    Tower.drawAt(this.game.canvas, Towers[this.game.building][1].color, this.x * Config.GRID_SIZE, this.y * Config.GRID_SIZE);
-    this.game.canvas.beginPath();
-    this.game.canvas.arc(
-        this.x * Config.GRID_SIZE + Config.GRID_SIZE / 2,
-        this.y * Config.GRID_SIZE + Config.GRID_SIZE / 2,
-        Towers[this.game.building][1].range,
-        2 * Math.PI,
-        false
-    );
-    this.game.canvas.strokeStyle = 'black';
-    this.game.canvas.stroke();
-    this.game.canvas.globalAlpha = 1;
+    if (this.type == Tile.GOLD)
+    {
+        this.game.canvas.globalAlpha = 0.7;
+        center = this.getCenter();
+        this.game.canvas.fillStyle = 'white';
+        this.game.canvas.fillRect(center.x + 10, center.y - 20, 120, 40);
+        this.game.canvas.globalAlpha = 1;
+
+        this.game.canvas.fillStyle = 'black';
+        this.game.canvas.font = '12px Arial';
+        this.game.canvas.fillText('$: ' + this.gold, center.x + 15, center.y - 10);
+    }
+    else
+    {
+        Tower.drawAt(this.game.canvas, Towers[this.game.building][1].color, this.x * Config.GRID_SIZE, this.y * Config.GRID_SIZE);
+        this.game.canvas.beginPath();
+        this.game.canvas.arc(
+            this.x * Config.GRID_SIZE + Config.GRID_SIZE / 2,
+            this.y * Config.GRID_SIZE + Config.GRID_SIZE / 2,
+            Towers[this.game.building][1].range,
+            2 * Math.PI,
+            false
+        );
+        this.game.canvas.strokeStyle = 'black';
+        this.game.canvas.stroke();
+        this.game.canvas.globalAlpha = 1;
+    }
 };
 
 Tile.ROAD = 'road';
 Tile.EMPTY = 'empty';
+Tile.GOLD = 'gold';
 
 Monster.GREEN = 'green';
 Monster.RED = 'red';
@@ -712,6 +922,7 @@ Monster.YELLOW = 'yellow';
 Tower.BLUE = 'blue';
 Tower.BLACK = 'black';
 Tower.YELLOW = 'yellow';
+Tower.GREEN = 'green';
 
 Monsters = {};
 Monsters[Monster.GREEN] = {
@@ -847,6 +1058,30 @@ Bullets[Bullet.ROCKET] = {
 
 Towers = {};
 
+Towers[Tower.GREEN] = {
+    1 : {
+        cost : 50,
+        drones : 2,
+        capacity : 10,
+        color : 'green',
+        damage : 0,
+        range : 0,
+        beams : 0,
+        reload : 20
+    },
+    2 : {
+        cost : 100,
+        drones : 3,
+        capacity : 20,
+        xp : 0,
+        color : 'green',
+        damage : 0,
+        range : 0,
+        beams : 0,
+        reload : 20
+    }
+};
+
 Towers[Tower.YELLOW] = {
     1 : {
         cost : 100,
@@ -953,65 +1188,67 @@ Level = {
         y : 1,
     },
     tiles : [
-        [1, 0],
-        [1, 1],
-        [1, 2],
-        [1, 3],
-        [1, 4],
-        [1, 5],
-        [1, 6],
-        [1, 7],
-        [1, 8],
-        [1, 9],
-        [1, 10],
-        [1, 11],
-        [2, 11],
-        [3, 11],
-        [3, 10],
-        [3, 9],
-        [3, 8],
-        [3, 7],
-        [3, 6],
-        [3, 5],
-        [3, 4],
-        [3, 3],
-        [3, 2],
-        [3, 1],
-        [4, 1],
-        [5, 1],
-        [6, 1],
-        [7, 1],
-        [8, 1],
-        [9, 1],
-        [10, 1],
-        [11, 1],
-        [12, 1],
-        [13, 1],
-        [14, 1],
-        [15, 1],
-        [16, 1],
-        [17, 1],
-        [18, 1],
-        [19, 1],
-        [20, 1],
-        [21, 1],
-        [22, 1],
-        [23, 1],
-        [24, 1],
-        [25, 1],
-        [26, 1],
-        [27, 1],
-        [28, 1],
-        [29, 1],
-        [30, 1],
-        [31, 1],
-        [32, 1],
-        [33, 1],
-        [34, 1],
-        [35, 1],
-        [36, 1],
-        [37, 1],
-        [38, 1],
-        [39, 1]
+        [1, 0, Tile.ROAD],
+        [1, 1, Tile.ROAD],
+        [1, 2, Tile.ROAD],
+        [1, 3, Tile.ROAD],
+        [1, 4, Tile.ROAD],
+        [1, 5, Tile.ROAD],
+        [1, 6, Tile.ROAD],
+        [1, 7, Tile.ROAD],
+        [1, 8, Tile.ROAD],
+        [1, 9, Tile.ROAD],
+        [1, 10, Tile.ROAD],
+        [1, 11, Tile.ROAD],
+        [2, 11, Tile.ROAD],
+        [3, 11, Tile.ROAD],
+        [3, 10, Tile.ROAD],
+        [3, 9, Tile.ROAD],
+        [3, 8, Tile.ROAD],
+        [3, 7, Tile.ROAD],
+        [3, 6, Tile.ROAD],
+        [3, 5, Tile.ROAD],
+        [3, 4, Tile.ROAD],
+        [3, 3, Tile.ROAD],
+        [3, 2, Tile.ROAD],
+        [3, 1, Tile.ROAD],
+        [4, 1, Tile.ROAD],
+        [5, 1, Tile.ROAD],
+        [6, 1, Tile.ROAD],
+        [7, 1, Tile.ROAD],
+        [8, 1, Tile.ROAD],
+        [9, 1, Tile.ROAD],
+        [10, 1, Tile.ROAD],
+        [11, 1, Tile.ROAD],
+        [12, 1, Tile.ROAD],
+        [13, 1, Tile.ROAD],
+        [14, 1, Tile.ROAD],
+        [15, 1, Tile.ROAD],
+        [16, 1, Tile.ROAD],
+        [17, 1, Tile.ROAD],
+        [18, 1, Tile.ROAD],
+        [19, 1, Tile.ROAD],
+        [20, 1, Tile.ROAD],
+        [21, 1, Tile.ROAD],
+        [22, 1, Tile.ROAD],
+        [23, 1, Tile.ROAD],
+        [24, 1, Tile.ROAD],
+        [25, 1, Tile.ROAD],
+        [26, 1, Tile.ROAD],
+        [27, 1, Tile.ROAD],
+        [28, 1, Tile.ROAD],
+        [29, 1, Tile.ROAD],
+        [30, 1, Tile.ROAD],
+        [31, 1, Tile.ROAD],
+        [32, 1, Tile.ROAD],
+        [33, 1, Tile.ROAD],
+        [34, 1, Tile.ROAD],
+        [35, 1, Tile.ROAD],
+        [36, 1, Tile.ROAD],
+        [37, 1, Tile.ROAD],
+        [38, 1, Tile.ROAD],
+        [39, 1, Tile.ROAD],
+        [7, 7, Tile.GOLD],
+        [8, 8, Tile.GOLD]
     ]
 };
