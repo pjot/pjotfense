@@ -525,7 +525,7 @@ Monster.prototype.die = function () {
         if (this.is(monster))
         {
             this.game.monsters.splice(m, 1);
-            this.game.coins += Math.floor(this.original_life / 5)
+            this.game.coins += Math.floor(this.original_life / 20)
             return;
         }
     }
@@ -900,10 +900,10 @@ Towers[Tower.BLUE] = {
         color : '#3F37DB'
     },
     4 : {
-        cost : 500,
-        damage : 150,
+        cost : 300,
+        damage : 80,
         beams : 1,
-        range : 500,
+        range : 300,
         reload : 10,
         xp : 600,
         bullet : Bullet.ROCKET,
